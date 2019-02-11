@@ -1,8 +1,22 @@
 const express = require('express')
-const path = require('path')
+// const path = require('path')
+const dgram = require('dgram');
+const wait = require('waait');
 const bodyParser = require('body-parser');
-const PORT = 5000
+const SERVERPORT = 5000
 
+
+const commandDelays = require('./commandDelays');
+
+const PORT = 8889;
+const HOST = '192.168.10.1';
+
+const drone = dgram.createSocket('udp4');
+drone.bind(PORT);
+
+-drone.on('message', message => {
+  console.log(`Drone : ${message}`);
+});
 
 const app = express();
 
@@ -13,40 +27,25 @@ app.use(function(request, response, next) {
 });
 
 app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json())
 
 app.post('/launch', function (req, res) {
-  console.log(req.body)
-// go();
-  res.send('POST request to the homepage')
+  const requestCommand = req.body.command;
+  const flightCommand = requestCommand.split(',');
+  goForLaunch(flightCommand);
+  res.send('SUCCESS!')
 })
 
-app.listen(PORT,() => {
-  console.log(`Listening on port ${PORT}...`);
+app.listen(SERVERPORT,() => {
+  console.log(`Listening on port ${SERVERPORT}...`);
 });
 
 
-
-
-// const dgram = require('dgram');
-// const wait = require('waait');
-// const commandDelays = require('./commandDelays');
-
-// const PORT = 8889;
-// const HOST = '192.168.10.1';
-
-// const drone = dgram.createSocket('udp4');
-// drone.bind(PORT);
-
-// -drone.on('message', message => {
-//   console.log(`Drone : ${message}`);
-// });
-
-// function handleError(err) {
-//   if (err) {
-//     console.log('ERROR');
-//     console.log(err);
-//   }
-// }
+function handleError(err) {
+  if (err) {
+    console.log('ERROR', err);
+  }
+}
 
 // const commands = ['command', 'takeoff', 'cw 90', 'land'];
 // // const commands = ['command', 'battery?'];
@@ -55,16 +54,16 @@ app.listen(PORT,() => {
 
 // drone.send('command', 0, 'command'.length, PORT, HOST, handleError);
 
-// May need to increase the wait times on the commandDelays 
+// May need to increase the wait times on the commandDelays
 
-async function go(command) {
+async function goForLaunch(command) {
   const delay = commandDelays[command];
   console.log(`running command: ${command}`);
-  // drone.send(command, 0, command.length, PORT, HOST, handleError);
-  // await wait(delay);
-  // i += 1;
-  // if (i < commands.length) {
-  //   return go();
-  // }
+  drone.send(command, 0, command.length, PORT, HOST, handleError);
+  await wait(delay);
+  i += 1;
+  if (i < commands.length) {
+    return goForLaunch();
+  }
   console.log('done!');
 }
